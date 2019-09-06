@@ -94,21 +94,21 @@ pub unsafe fn determine_type_rights(
                 host::RIGHTS_REGULAR_FILE_BASE,
                 host::RIGHTS_REGULAR_FILE_INHERITING,
             )
-        } else if ft.is_socket() {
-            use nix::sys::socket;
-            match socket::getsockopt(rawfd, socket::sockopt::SockType).unwrap() {
-                socket::SockType::Datagram => (
-                    host::__WASI_FILETYPE_SOCKET_DGRAM,
-                    host::RIGHTS_SOCKET_BASE,
-                    host::RIGHTS_SOCKET_INHERITING,
-                ),
-                socket::SockType::Stream => (
-                    host::__WASI_FILETYPE_SOCKET_STREAM,
-                    host::RIGHTS_SOCKET_BASE,
-                    host::RIGHTS_SOCKET_INHERITING,
-                ),
-                _ => return Err(host::__WASI_EINVAL as host::__wasi_errno_t),
-            }
+        // } else if ft.is_socket() {
+        //     use nix::sys::socket;
+        //     match socket::getsockopt(rawfd, socket::sockopt::SockType).unwrap() {
+        //         socket::SockType::Datagram => (
+        //             host::__WASI_FILETYPE_SOCKET_DGRAM,
+        //             host::RIGHTS_SOCKET_BASE,
+        //             host::RIGHTS_SOCKET_INHERITING,
+        //         ),
+        //         socket::SockType::Stream => (
+        //             host::__WASI_FILETYPE_SOCKET_STREAM,
+        //             host::RIGHTS_SOCKET_BASE,
+        //             host::RIGHTS_SOCKET_INHERITING,
+        //         ),
+        //         _ => return Err(host::__WASI_EINVAL as host::__wasi_errno_t),
+        //     }
         } else if ft.is_fifo() {
             (
                 host::__WASI_FILETYPE_SOCKET_STREAM,
