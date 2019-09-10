@@ -922,23 +922,178 @@ impl Instance {
     }
 
     /// Run a function in guest context at the given entrypoint.
-    pub fn unsafe_run_func_fast(&mut self, func_ptr: FunctionPointer, args: &[Val]) -> Result<RunResult, Error> {
+    pub fn unsafe_run_func_fast(
+        &mut self,
+        func_ptr: FunctionPointer,
+        args: &[Val],
+    ) -> Result<RunResult, Error> {
+        let prev_entrypoint = self.entrypoint;
         self.entrypoint = Some(func_ptr);
 
         let mut args_with_vmctx = vec![Val::from(self.alloc.slot().heap)];
         args_with_vmctx.extend_from_slice(args);
 
-        HOST_CTX.with(|host_ctx| {
+        let re_entrant = match &self.state {
+            State::Running => true,
+            _ => false,
+        };
+
+        let saved_host_ctx = HOST_CTX.with(|host_ctx| {
+            let chosen_stack_loc;
+
+            if re_entrant {
+                let curr_stack_ptr = unsafe { Context::get_current_stack_pointer() };
+                // Add some padding as we have to account for the stack used by the rest of the current function body
+                let padded_curr_stack_ptr = curr_stack_ptr - 2048;
+
+                let stack_slice = unsafe { self.alloc.stack_mut() };
+                let stack_ptr = stack_slice.as_ptr() as u64;
+
+                assert!(padded_curr_stack_ptr >= stack_ptr);
+
+                let mut rem_stack_len = ((padded_curr_stack_ptr - stack_ptr) / 8) as usize;
+                // align to 8
+                if rem_stack_len % 8 != 0 {
+                    rem_stack_len += 8 - rem_stack_len % 8;
+                }
+
+                let computed_stack_loc = unsafe {
+                    std::slice::from_raw_parts_mut(stack_slice.as_ptr() as *mut u64, rem_stack_len)
+                };
+
+                chosen_stack_loc = computed_stack_loc;
+            } else {
+                chosen_stack_loc = unsafe { self.alloc.stack_u64_mut() };
+            }
+
+            let host_ctx_copy = unsafe { (*host_ctx.get()).clone() };
+
             Context::init(
-                unsafe { self.alloc.stack_u64_mut() },
+                chosen_stack_loc,
                 unsafe { &mut *host_ctx.get() },
                 &mut self.ctx,
                 func_ptr.as_usize(),
                 &args_with_vmctx,
             )
+            .map(|_| host_ctx_copy)
         })?;
 
-        self.swap_and_return()
+        debug_assert!(
+            self.state.is_ready()
+                || self.state.is_running()
+                || (self.state.is_fault() && !self.state.is_fatal())
+                || self.state.is_yielded()
+        );
+
+        if !re_entrant {
+            self.state = State::Running;
+        }
+
+        // there should never be another instance running on this thread when we enter this function
+        let mut prev_instance = None;
+        CURRENT_INSTANCE.with(|current_instance| {
+            let mut current_instance = current_instance.borrow_mut();
+            prev_instance = *current_instance;
+            // safety: `self` is not null if we are in this function
+            *current_instance = Some(unsafe { NonNull::new_unchecked(self) });
+        });
+
+        // self.with_signals_on(|i| {
+        HOST_CTX.with(|host_ctx| {
+            // Save the current context into `host_ctx`, and jump to the guest context. The
+            // lucet context is linked to host_ctx, so it will return here after it finishes,
+            // successfully or otherwise.
+            unsafe { Context::swap(&mut *host_ctx.get(), &mut self.ctx) };
+            // Ok(())
+        });
+        // })?;
+
+        if re_entrant {
+            HOST_CTX.with(|host_ctx| {
+                let host_ctx_ref = unsafe { &mut *host_ctx.get() };
+                *host_ctx_ref = saved_host_ctx;
+            });
+        }
+
+        CURRENT_INSTANCE.with(|current_instance| {
+            *current_instance.borrow_mut() = prev_instance;
+        });
+
+        self.entrypoint = prev_entrypoint;
+
+        // Sandbox has jumped back to the host process, indicating it has either:
+        //
+        // * returned: state should be `Running`; transition to `Ready` and return a RunResult
+        // * yielded: state should be `Yielding`; transition to `Yielded` and return a RunResult
+        // * trapped: state should be `Faulted`; populate details and return an error or call a handler as appropriate
+        // * terminated: state should be `Terminating`; transition to `Terminated` and return the termination details as an Err
+        //
+        // The state should never be `Ready`, `Terminated`, `Yielded`, or `Transitioning` at this point
+
+        // Set transitioning state temporarily so that we can move values out of the current state
+        let st = mem::replace(&mut self.state, State::Transitioning);
+
+        match st {
+            State::Running => {
+                let retval = self.ctx.get_untyped_retval();
+                if !re_entrant {
+                    self.state = State::Ready;
+                } else {
+                    self.state = State::Running;
+                }
+                Ok(RunResult::Returned(retval))
+            }
+            State::Terminating { details, .. } => {
+                self.state = State::Terminated;
+                Err(Error::RuntimeTerminated(details))
+            }
+            State::Yielding { val, expecting } => {
+                self.state = State::Yielded { expecting };
+                Ok(RunResult::Yielded(val))
+            }
+            State::Faulted {
+                mut details,
+                siginfo,
+                context,
+            } => {
+                // Sandbox is no longer runnable. It's unsafe to determine all error details in the signal
+                // handler, so we fill in extra details here.
+                //
+                // FIXME after lucet-module is complete it should be possible to fill this in without
+                // consulting the process symbol table
+                details.rip_addr_details = self
+                    .module
+                    .addr_details(details.rip_addr as *const c_void)?;
+
+                // fill the state back in with the updated details in case fatal handlers need it
+                self.state = State::Faulted {
+                    details: details.clone(),
+                    siginfo,
+                    context,
+                };
+
+                if details.fatal {
+                    // Some errors indicate that the guest is not functioning correctly or that
+                    // the loaded code violated some assumption, so bail out via the fatal
+                    // handler.
+
+                    // Run the C-style fatal handler, if it exists.
+                    self.c_fatal_handler
+                        .map(|h| unsafe { h(self as *mut Instance) });
+
+                    // If there is no C-style fatal handler, or if it (erroneously) returns,
+                    // call the Rust handler that we know will not return
+                    (self.fatal_handler)(self)
+                } else {
+                    // leave the full fault details in the instance state, and return the
+                    // higher-level info to the user
+                    Err(Error::RuntimeFault(details))
+                }
+            }
+            State::Ready | State::Terminated | State::Yielded { .. } | State::Transitioning => Err(
+                lucet_format_err!("\"impossible\" state found in `swap_and_return()`: {}", st),
+            ),
+        }
     }
 
     fn run_start(&mut self) -> Result<(), Error> {

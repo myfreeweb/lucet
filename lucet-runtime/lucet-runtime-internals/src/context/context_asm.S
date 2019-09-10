@@ -164,6 +164,22 @@ _lucet_context_set:
 .size lucet_context_set,.-lucet_context_set
 #endif
 
+.text
+.globl lucet_get_current_stack_pointer
+#ifdef __ELF__
+.type lucet_get_current_stack_pointer,@function
+#else
+.globl _lucet_get_current_stack_pointer
+#endif
+.align 16
+lucet_get_current_stack_pointer:
+_lucet_get_current_stack_pointer:
+    mov %rsp, %rax
+    ret
+#ifdef __ELF__
+.size lucet_get_current_stack_pointer,.-lucet_get_current_stack_pointer
+#endif
+
 /* Mark that we don't need executable stack. */
 #if defined(__linux__) && defined(__ELF__)
 .section .note.GNU-stack,"",%progbits

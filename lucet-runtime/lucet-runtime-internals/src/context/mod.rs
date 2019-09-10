@@ -25,6 +25,7 @@ use xfailure::xbail;
 /// <https://doc.rust-lang.org/nomicon/other-reprs.html#reprpacked>. Since the members are all
 /// `u64`, this should be fine?
 #[repr(C)]
+#[derive(Clone)]
 struct GpRegs {
     rbx: u64,
     rsp: u64,
@@ -64,6 +65,7 @@ impl GpRegs {
 /// <https://doc.rust-lang.org/nomicon/other-reprs.html#reprpacked>. Since the members are all
 /// `__m128`, this should be fine?
 #[repr(C)]
+#[derive(Clone)]
 struct FpRegs {
     xmm0: __m128,
     xmm1: __m128,
@@ -109,6 +111,7 @@ impl FpRegs {
 /// their stack, which in turn contains a pointer back to the context. If the context gets moved,
 /// that pointer becomes invalid, and the behavior of returning from that context becomes undefined.
 #[repr(C, align(64))]
+#[derive(Clone)]
 pub struct Context {
     gpr: GpRegs,
     fpr: FpRegs,
@@ -509,6 +512,11 @@ impl Context {
         lucet_context_set(to as *const Context);
     }
 
+    #[inline]
+    pub unsafe fn get_current_stack_pointer() -> u64 {
+        return lucet_get_current_stack_pointer();
+    }
+
     /// Like `set`, but also manages the return from a signal handler.
     ///
     /// TODO: the return type of this function should really be `Result<!, nix::Error>`, but using
@@ -632,4 +640,6 @@ extern "C" {
     ///
     /// Never returns because the current context is discarded.
     fn lucet_context_set(to: *const Context) -> !;
+
+    fn lucet_get_current_stack_pointer() -> u64;
 }
