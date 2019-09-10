@@ -921,6 +921,26 @@ impl Instance {
         }
     }
 
+    /// Run a function in guest context at the given entrypoint.
+    pub fn unsafe_run_func_fast(&mut self, func_ptr: FunctionPointer, args: &[Val]) -> Result<RunResult, Error> {
+        self.entrypoint = Some(func_ptr);
+
+        let mut args_with_vmctx = vec![Val::from(self.alloc.slot().heap)];
+        args_with_vmctx.extend_from_slice(args);
+
+        HOST_CTX.with(|host_ctx| {
+            Context::init(
+                unsafe { self.alloc.stack_u64_mut() },
+                unsafe { &mut *host_ctx.get() },
+                &mut self.ctx,
+                func_ptr.as_usize(),
+                &args_with_vmctx,
+            )
+        })?;
+
+        self.swap_and_return()
+    }
+
     fn run_start(&mut self) -> Result<(), Error> {
         if let Some(start) = self.module.get_start_func()? {
             let res = self.run_func(start, &[])?;
