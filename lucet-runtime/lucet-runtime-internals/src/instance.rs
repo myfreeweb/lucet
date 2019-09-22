@@ -921,6 +921,23 @@ impl Instance {
         }
     }
 
+    pub fn set_current_instance(&mut self)
+    {
+        // there should never be another instance running on this thread when we enter this function
+        CURRENT_INSTANCE.with(|current_instance| {
+            let mut current_instance = current_instance.borrow_mut();
+            // safety: `self` is not null if we are in this function
+            *current_instance = Some(unsafe { NonNull::new_unchecked(self) });
+        });
+    }
+
+    pub fn clear_current_instance(&mut self)
+    {
+        CURRENT_INSTANCE.with(|current_instance| {
+            *current_instance.borrow_mut() = None;
+        });
+    }
+
     /// Run a function in guest context at the given entrypoint.
     pub fn unsafe_run_func_fast(
         &mut self,
