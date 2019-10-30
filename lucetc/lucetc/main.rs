@@ -53,7 +53,7 @@ pub fn run(opts: &Options) -> Result<(), Error> {
     let mut c = Lucetc::new(PathBuf::from(input))
         .with_bindings(bindings)
         .with_opt_level(opts.opt_level)
-        .with_cpu_features(opts.cpu_features);
+        .with_cpu_features(opts.cpu_features.clone());
 
     if let Some(ref builtins) = opts.builtins_path {
         c.builtins(builtins);
