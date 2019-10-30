@@ -22,8 +22,7 @@ mod types;
 
 use crate::load::read_bytes;
 pub use crate::{
-    compiler::Compiler,
-    compiler::OptLevel,
+    compiler::{Compiler, CpuFeatures, OptLevel, SpecificFeatures, TargetCpu},
     error::{LucetcError, LucetcErrorKind},
     heap::HeapSettings,
     load::read_module,
@@ -45,6 +44,7 @@ pub struct Lucetc {
     input: LucetcInput,
     bindings: Vec<Bindings>,
     opt_level: OptLevel,
+    cpu_features: CpuFeatures,
     heap: HeapSettings,
     builtins_paths: Vec<PathBuf>,
     sk: Option<SecretKey>,
@@ -70,6 +70,9 @@ pub trait LucetcOpts {
 
     fn opt_level(&mut self, opt_level: OptLevel);
     fn with_opt_level(self, opt_level: OptLevel) -> Self;
+
+    fn cpu_features(&mut self, cpu_features: CpuFeatures);
+    fn with_cpu_features(self, cpu_features: CpuFeatures) -> Self;
 
     fn builtins<P: AsRef<Path>>(&mut self, builtins_path: P);
     fn with_builtins<P: AsRef<Path>>(self, builtins_path: P) -> Self;
@@ -120,6 +123,15 @@ impl<T: AsLucetc> LucetcOpts for T {
 
     fn with_opt_level(mut self, opt_level: OptLevel) -> Self {
         self.opt_level(opt_level);
+        self
+    }
+
+    fn cpu_features(&mut self, cpu_features: CpuFeatures) {
+        self.as_lucetc().cpu_features = cpu_features;
+    }
+
+    fn with_cpu_features(mut self, cpu_features: CpuFeatures) -> Self {
+        self.cpu_features(cpu_features);
         self
     }
 
@@ -224,6 +236,7 @@ impl Lucetc {
             input: LucetcInput::Path(input.to_owned()),
             bindings: vec![],
             opt_level: OptLevel::default(),
+            cpu_features: CpuFeatures::default(),
             heap: HeapSettings::default(),
             builtins_paths: vec![],
             pk: None,
@@ -240,6 +253,7 @@ impl Lucetc {
             input: LucetcInput::Bytes(input),
             bindings: vec![],
             opt_level: OptLevel::default(),
+            cpu_features: CpuFeatures::default(),
             heap: HeapSettings::default(),
             builtins_paths: vec![],
             pk: None,
@@ -284,6 +298,7 @@ impl Lucetc {
         let compiler = Compiler::new(
             &module_contents,
             self.opt_level,
+            self.cpu_features,
             &bindings,
             self.heap.clone(),
             self.count_instructions,
@@ -300,6 +315,7 @@ impl Lucetc {
         let compiler = Compiler::new(
             &module_contents,
             self.opt_level,
+            self.cpu_features,
             &bindings,
             self.heap.clone(),
             self.count_instructions,
