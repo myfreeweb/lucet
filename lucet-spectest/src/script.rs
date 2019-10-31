@@ -70,7 +70,7 @@ impl ScriptEnv {
         let compiler = Compiler::new(
             module,
             OptLevel::Fast,
-            CpuFeatures::default(),
+            CpuFeatures::baseline(),
             &bindings,
             HeapSettings::default(),
             true,
