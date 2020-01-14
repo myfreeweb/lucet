@@ -33,6 +33,7 @@ pub use lucet_module::bindings::Bindings;
 use signature::{PublicKey, SecretKey};
 use std::env;
 use std::path::{Path, PathBuf};
+use target_lexicon::Triple;
 use tempfile;
 
 enum LucetcInput {
@@ -43,6 +44,7 @@ enum LucetcInput {
 pub struct Lucetc {
     input: LucetcInput,
     bindings: Vec<Bindings>,
+    target: Triple,
     opt_level: OptLevel,
     cpu_features: CpuFeatures,
     heap: HeapSettings,
@@ -67,6 +69,9 @@ impl AsLucetc for Lucetc {
 pub trait LucetcOpts {
     fn bindings(&mut self, bindings: Bindings);
     fn with_bindings(self, bindings: Bindings) -> Self;
+
+    fn target(&mut self, target: Triple);
+    fn with_target(self, target: Triple) -> Self;
 
     fn opt_level(&mut self, opt_level: OptLevel);
     fn with_opt_level(self, opt_level: OptLevel) -> Self;
@@ -114,6 +119,15 @@ impl<T: AsLucetc> LucetcOpts for T {
 
     fn with_bindings(mut self, bindings: Bindings) -> Self {
         self.bindings(bindings);
+        self
+    }
+
+    fn target(&mut self, target: Triple) {
+        self.as_lucetc().target = target;
+    }
+
+    fn with_target(mut self, target: Triple) -> Self {
+        self.target(target);
         self
     }
 
@@ -235,6 +249,7 @@ impl Lucetc {
         Self {
             input: LucetcInput::Path(input.to_owned()),
             bindings: vec![],
+            target: Triple::host(),
             opt_level: OptLevel::default(),
             cpu_features: CpuFeatures::default(),
             heap: HeapSettings::default(),
@@ -252,6 +267,7 @@ impl Lucetc {
         Ok(Self {
             input: LucetcInput::Bytes(input),
             bindings: vec![],
+            target: Triple::host(),
             opt_level: OptLevel::default(),
             cpu_features: CpuFeatures::default(),
             heap: HeapSettings::default(),
@@ -297,6 +313,7 @@ impl Lucetc {
 
         let compiler = Compiler::new(
             &module_contents,
+            self.target.clone(),
             self.opt_level,
             self.cpu_features.clone(),
             &bindings,
@@ -314,6 +331,7 @@ impl Lucetc {
 
         let compiler = Compiler::new(
             &module_contents,
+            self.target.clone(),
             self.opt_level,
             self.cpu_features.clone(),
             &bindings,
@@ -333,7 +351,7 @@ impl Lucetc {
         let dir = tempfile::Builder::new().prefix("lucetc").tempdir()?;
         let objpath = dir.path().join("tmp.o");
         self.object_file(objpath.clone())?;
-        link_so(objpath, &output)?;
+        link_so(objpath, &self.target, &output)?;
         if self.sign {
             let sk = self.sk.as_ref().ok_or(
                 format_err!("signing requires a secret key").context(LucetcErrorKind::Signature),
@@ -346,13 +364,7 @@ impl Lucetc {
 
 const LD_DEFAULT: &str = "ld";
 
-#[cfg(not(target_os = "macos"))]
-const LDFLAGS_DEFAULT: &str = "-shared";
-
-#[cfg(target_os = "macos")]
-const LDFLAGS_DEFAULT: &str = "-dylib -dead_strip -export_dynamic -undefined dynamic_lookup";
-
-fn link_so<P, Q>(objpath: P, sopath: Q) -> Result<(), Error>
+fn link_so<P, Q>(objpath: P, target: &Triple, sopath: Q) -> Result<(), Error>
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
@@ -360,7 +372,7 @@ where
     use std::process::Command;
     let mut cmd_ld = Command::new(env::var("LD").unwrap_or(LD_DEFAULT.into()));
     cmd_ld.arg(objpath.as_ref());
-    let env_ldflags = env::var("LDFLAGS").unwrap_or(LDFLAGS_DEFAULT.into());
+    let env_ldflags = env::var("LDFLAGS").unwrap_or_else(|_| ldflags_default(target));
     for flag in env_ldflags.split_whitespace() {
         cmd_ld.arg(flag);
     }
@@ -379,4 +391,23 @@ where
         ))?;
     }
     Ok(())
+}
+
+fn ldflags_default(target: &Triple) -> String {
+    use target_lexicon::OperatingSystem;
+
+    match target.operating_system {
+        OperatingSystem::Linux => "-shared",
+        OperatingSystem::MacOSX { .. } => {
+            "-dylib -dead_strip -export_dynamic -undefined dynamic_lookup"
+        }
+        _ => panic!(
+            "Cannot determine default flags for {}.
+
+Please define the LDFLAGS environment variable with the necessary command-line
+flags for generating shared libraries.",
+            Triple::host()
+        ),
+    }
+    .into()
 }

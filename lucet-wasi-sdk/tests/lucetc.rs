@@ -8,6 +8,7 @@ mod lucetc_tests {
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
+    use target_lexicon::Triple;
 
     fn module_from_c(cfiles: &[&str], exports: &[&str]) -> Result<Vec<u8>, Error> {
         let cfiles: Vec<PathBuf> = cfiles
@@ -39,7 +40,7 @@ mod lucetc_tests {
         let m = module_from_c(&["empty"], &[]).expect("build module for empty");
         let b = Bindings::empty();
         let h = HeapSettings::default();
-        let c = Compiler::new(&m, OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile empty");
+        let c = Compiler::new(&m, Triple::host(), OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile empty");
         let mdata = c.module_data().unwrap();
         assert!(mdata.heap_spec().is_some());
         // clang creates 3 globals:
@@ -74,7 +75,7 @@ mod lucetc_tests {
         let m = module_from_c(&["c"], &["c"]).expect("build module for c");
         let b = Bindings::empty();
         let h = HeapSettings::default();
-        let c = Compiler::new(&m, OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile c");
+        let c = Compiler::new(&m, Triple::host(), OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile c");
         let mdata = c.module_data().unwrap();
         assert_eq!(mdata.import_functions().len(), 0, "import functions");
         assert_eq!(mdata.export_functions().len(), 1, "export functions");
@@ -91,7 +92,7 @@ mod lucetc_tests {
         let m = module_from_c(&["d"], &["d"]).expect("build module for d");
         let b = d_only_test_bindings();
         let h = HeapSettings::default();
-        let c = Compiler::new(&m, OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile d");
+        let c = Compiler::new(&m, Triple::host(), OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile d");
         let mdata = c.module_data().unwrap();
         assert_eq!(mdata.import_functions().len(), 1, "import functions");
         assert_eq!(mdata.export_functions().len(), 1, "export functions");
@@ -107,7 +108,7 @@ mod lucetc_tests {
         let m = module_from_c(&["c", "d"], &["c", "d"]).expect("build module for c & d");
         let b = Bindings::empty();
         let h = HeapSettings::default();
-        let c = Compiler::new(&m, OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile c & d");
+        let c = Compiler::new(&m, Triple::host(), OptLevel::Fast, CpuFeatures::default(), &b, h, false).expect("compile c & d");
         let mdata = c.module_data().unwrap();
         assert_eq!(mdata.import_functions().len(), 0, "import functions");
         assert_eq!(mdata.export_functions().len(), 2, "export functions");
