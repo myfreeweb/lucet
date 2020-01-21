@@ -127,7 +127,7 @@ macro_rules! guest_fault_tests {
         use libc::{c_void, siginfo_t, SIGSEGV};
         use lucet_runtime::vmctx::{lucet_vmctx, Vmctx};
         use lucet_runtime::{
-            lucet_hostcall_terminate, lucet_hostcalls, DlModule, Error, FaultDetails, Instance,
+            lucet_hostcall_terminate, lucet_hostcalls, lucet_internal_ensure_linked, DlModule, Error, FaultDetails, Instance,
             Limits, Region, SignalBehavior, TrapCode,
         };
         use nix::sys::mman::{mmap, MapFlags, ProtFlags};
@@ -634,6 +634,7 @@ macro_rules! guest_fault_tests {
 
         #[test]
         fn fatal_abort() {
+            lucet_internal_ensure_linked();
             fn handler(_inst: &Instance) -> ! {
                 std::process::abort()
             }

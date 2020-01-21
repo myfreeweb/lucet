@@ -18,6 +18,7 @@ pub fn run(module_path: PathBuf) -> Result<(), Error> {
             heap_address_space_size: 8 * 1024 * 1024 * 1024,
             globals_size: 4 * 1024 * 1024,
             stack_size: 4 * 1024 * 1024,
+            ..Limits::default()
         },
     )?;
 
