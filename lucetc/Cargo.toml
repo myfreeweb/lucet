@@ -9,12 +9,9 @@ categories = ["wasm"]
 authors = ["Lucet team <lucet@fastly.com>"]
 edition = "2018"
 
-[lib]
-crate-type=["rlib"]
-
 [[bin]]
 name = "lucetc"
-path = "src/main.rs"
+path = "lucetc/main.rs"
 
 [dependencies]
 bincode = "1.1.4"
@@ -43,6 +40,7 @@ human-size = "0.4"
 parity-wasm = "0.38"
 minisign = "0.5.11"
 memoffset = "0.5.1"
+raw-cpuid = "7.0.3"
 
 [features]
 signature_checking = ["lucet-module/signature_checking"]

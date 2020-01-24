@@ -1,3 +1,6 @@
+mod cpu_features;
+
+pub use self::cpu_features::{CpuFeatures, SpecificFeature, TargetCpu};
 use crate::decls::ModuleDecls;
 use crate::error::{LucetcError, LucetcErrorKind};
 use crate::function::FuncInfo;
@@ -15,11 +18,11 @@ use cranelift_codegen::{
 };
 use cranelift_faerie::{FaerieBackend, FaerieBuilder, FaerieTrapCollection};
 use cranelift_module::{Backend as ClifBackend, Module as ClifModule};
-use cranelift_native;
 use cranelift_wasm::{translate_module, FuncTranslator, WasmError};
 use failure::{format_err, Fail, ResultExt};
 use lucet_module::bindings::Bindings;
-use lucet_module::{FunctionSpec, ModuleData, MODULE_DATA_SYM};
+use lucet_module::{FunctionSpec, ModuleData, ModuleFeatures, MODULE_DATA_SYM};
+use target_lexicon::Triple;
 
 #[derive(Debug, Clone, Copy)]
 pub enum OptLevel {
@@ -47,19 +50,23 @@ impl OptLevel {
 pub struct Compiler<'a> {
     decls: ModuleDecls<'a>,
     clif_module: ClifModule<FaerieBackend>,
+    target: Triple,
     opt_level: OptLevel,
+    cpu_features: CpuFeatures,
     count_instructions: bool,
 }
 
 impl<'a> Compiler<'a> {
     pub fn new(
         wasm_binary: &'a [u8],
+        target: Triple,
         opt_level: OptLevel,
+        cpu_features: CpuFeatures,
         bindings: &'a Bindings,
         heap_settings: HeapSettings,
         count_instructions: bool,
     ) -> Result<Self, LucetcError> {
-        let isa = Self::target_isa(opt_level);
+        let isa = Self::target_isa(target.clone(), opt_level, &cpu_features)?;
 
         let frontend_config = isa.frontend_config();
         let mut module_info = ModuleInfo::new(frontend_config.clone());
@@ -108,12 +115,19 @@ impl<'a> Compiler<'a> {
             decls,
             clif_module,
             opt_level,
+            cpu_features,
             count_instructions,
+            target,
         })
     }
 
+    pub fn module_features(&self) -> ModuleFeatures {
+        // This will grow in the future to encompass other options describing the compiled module.
+        (&self.cpu_features).into()
+    }
+
     pub fn module_data(&self) -> Result<ModuleData<'_>, LucetcError> {
-        self.decls.get_module_data()
+        self.decls.get_module_data(self.module_features())
     }
 
     pub fn object_file(mut self) -> Result<ObjectFile, LucetcError> {
@@ -138,7 +152,13 @@ impl<'a> Compiler<'a> {
 
         stack_probe::declare_metadata(&mut self.decls, &mut self.clif_module).unwrap();
 
-        let module_data_len = write_module_data(&mut self.clif_module, &self.decls)?;
+        let module_data_bytes = self
+            .module_data()?
+            .serialize()
+            .context(LucetcErrorKind::ModuleData)?;
+        let module_data_len = module_data_bytes.len();
+
+        write_module_data(&mut self.clif_module, module_data_bytes)?;
         write_startfunc_data(&mut self.clif_module, &self.decls)?;
         let table_names = write_table_data(&mut self.clif_module, &self.decls)?;
 
@@ -187,35 +207,34 @@ impl<'a> Compiler<'a> {
 
             funcs.insert(func.name.clone(), clif_context.func);
         }
-        Ok(CraneliftFuncs::new(funcs, Self::target_isa(self.opt_level)))
+        Ok(CraneliftFuncs::new(
+            funcs,
+            Self::target_isa(self.target, self.opt_level, &self.cpu_features)?,
+        ))
     }
 
-    fn target_isa(opt_level: OptLevel) -> Box<dyn TargetIsa> {
+    fn target_isa(
+        target: Triple,
+        opt_level: OptLevel,
+        cpu_features: &CpuFeatures,
+    ) -> Result<Box<dyn TargetIsa>, LucetcError> {
         let mut flags_builder = settings::builder();
-        let isa_builder =
-            cranelift_native::builder().expect("host machine is not a supported target");
+        let isa_builder = cpu_features.isa_builder(target)?;
         flags_builder.enable("enable_verifier").unwrap();
         flags_builder.enable("is_pic").unwrap();
         flags_builder.set("opt_level", opt_level.to_flag()).unwrap();
-        isa_builder.finish(settings::Flags::new(flags_builder))
+        Ok(isa_builder.finish(settings::Flags::new(flags_builder)))
     }
 }
 
 fn write_module_data<B: ClifBackend>(
     clif_module: &mut ClifModule<B>,
-    decls: &ModuleDecls<'_>,
-) -> Result<usize, LucetcError> {
+    module_data_bytes: Vec<u8>,
+) -> Result<(), LucetcError> {
     use cranelift_module::{DataContext, Linkage};
 
-    let module_data_serialized: Vec<u8> = decls
-        .get_module_data()?
-        .serialize()
-        .context(LucetcErrorKind::ModuleData)?;
-
-    let module_data_len = module_data_serialized.len();
-
     let mut module_data_ctx = DataContext::new();
-    module_data_ctx.define(module_data_serialized.into_boxed_slice());
+    module_data_ctx.define(module_data_bytes.into_boxed_slice());
 
     let module_data_decl = clif_module
         .declare_data(MODULE_DATA_SYM, Linkage::Local, true, None)
@@ -224,7 +243,7 @@ fn write_module_data<B: ClifBackend>(
         .define_data(module_data_decl, &module_data_ctx)
         .context(LucetcErrorKind::ModuleData)?;
 
-    Ok(module_data_len)
+    Ok(())
 }
 
 fn write_startfunc_data<B: ClifBackend>(
