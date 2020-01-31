@@ -47,7 +47,7 @@ optional = true
 
 [lib]
 name = "lucet_wasi"
-crate-type = ["rlib", "staticlib", "cdylib"]
+crate-type = ["rlib", "staticlib"]
 
 [package.metadata.deb]
 name = "fst-lucet-wasi"
