@@ -806,7 +806,7 @@ dependencies = [
  "lucet-wasi 0.1.1",
  "lucet-wasi-sdk 0.1.1",
  "lucetc 0.1.1",
- "proptest 0.9.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proptest 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1229,7 +1229,7 @@ dependencies = [
 
 [[package]]
 name = "proptest"
-version = "0.9.4"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bit-set 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2105,7 +2105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)" = "cf3d2011ab5c909338f7887f4fc896d35932e29146c12c8d01da6b22a80ba759"
 "checksum proc-macro2 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "175a40b9cf564ce9bf050654633dbf339978706b8ead1a907bb970b63185dd95"
 "checksum progress 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b820305721858696053a7fd0215cfeeee16ecaaf96b7a209945428e02f1c44"
-"checksum proptest 0.9.4 (registry+https://github.com/rust-lang/crates.io-index)" = "cf147e022eacf0c8a054ab864914a7602618adba841d800a9a9868a5237a529f"
+"checksum proptest 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)" = "01c477819b845fe023d33583ebf10c9f62518c8d79a0960ba5c36d6ac8a55a5b"
 "checksum quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9274b940887ce9addde99c4eee6b5c44cc494b182b97e73dc8ffdcb3397fd3f0"
 "checksum quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)" = "6ce23b6b870e8f94f81fb0a363d65d86675884b34a09043c81e5562f11c1f8e1"
 "checksum quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "053a8c8bcc71fcce321828dc897a98ab9760bef03a4fc36693c231e5b3216cfe"
