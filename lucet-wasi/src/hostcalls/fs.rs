@@ -357,9 +357,9 @@ pub fn wasi_path_open(
 
     // convert file descriptor flags
     nix_all_oflags.insert(host::nix_from_fdflags(fs_flags));
-    if nix_all_oflags.contains(OFlag::O_DSYNC) {
-        needed_inheriting |= host::__WASI_RIGHT_FD_DATASYNC as host::__wasi_rights_t;
-    }
+    // if nix_all_oflags.contains(OFlag::O_DSYNC) {
+    //     needed_inheriting |= host::__WASI_RIGHT_FD_DATASYNC as host::__wasi_rights_t;
+    // }
     if nix_all_oflags.intersects(O_RSYNC | OFlag::O_SYNC) {
         needed_inheriting |= host::__WASI_RIGHT_FD_SYNC as host::__wasi_rights_t;
     }

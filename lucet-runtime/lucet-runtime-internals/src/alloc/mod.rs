@@ -365,10 +365,10 @@ pub struct Limits {
     pub signal_stack_size: usize,
 }
 
-#[cfg(debug_assertions)]
+// #[cfg(debug_assertions)]
 pub const DEFAULT_SIGNAL_STACK_SIZE: usize = 12 * 1024;
-#[cfg(not(debug_assertions))]
-pub const DEFAULT_SIGNAL_STACK_SIZE: usize = libc::SIGSTKSZ;
+// #[cfg(not(debug_assertions))]
+// pub const DEFAULT_SIGNAL_STACK_SIZE: usize = libc::SIGSTKSZ;
 
 impl Limits {
     pub const fn default() -> Limits {

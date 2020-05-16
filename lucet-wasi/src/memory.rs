@@ -612,8 +612,8 @@ pub fn dirent_from_host(
     host_entry: &nix::libc::dirent,
 ) -> Result<wasm32::__wasi_dirent_t, host::__wasi_errno_t> {
     let mut entry = unsafe { std::mem::zeroed::<wasm32::__wasi_dirent_t>() };
-    entry.d_ino = enc_inode(host_entry.d_ino);
-    entry.d_next = enc_dircookie(host_entry.d_seekoff);
+    entry.d_ino = enc_inode(host_entry.d_fileno.into());
+    // entry.d_next = enc_dircookie(host_entry.d_seekoff);
     entry.d_namlen = enc_u32(u32::from(host_entry.d_namlen));
     entry.d_type = enc_filetype(host_entry.d_type);
     Ok(entry)

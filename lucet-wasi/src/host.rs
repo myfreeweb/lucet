@@ -122,9 +122,9 @@ pub fn nix_from_fdflags(fdflags: __wasi_fdflags_t) -> nix::fcntl::OFlag {
     if fdflags & (__WASI_FDFLAG_APPEND as __wasi_fdflags_t) != 0 {
         nix_flags.insert(OFlag::O_APPEND);
     }
-    if fdflags & (__WASI_FDFLAG_DSYNC as __wasi_fdflags_t) != 0 {
-        nix_flags.insert(OFlag::O_DSYNC);
-    }
+    // if fdflags & (__WASI_FDFLAG_DSYNC as __wasi_fdflags_t) != 0 {
+    //     nix_flags.insert(OFlag::O_DSYNC);
+    // }
     if fdflags & (__WASI_FDFLAG_NONBLOCK as __wasi_fdflags_t) != 0 {
         nix_flags.insert(OFlag::O_NONBLOCK);
     }
@@ -143,9 +143,9 @@ pub fn fdflags_from_nix(oflags: nix::fcntl::OFlag) -> __wasi_fdflags_t {
     if oflags.contains(OFlag::O_APPEND) {
         fdflags |= __WASI_FDFLAG_APPEND;
     }
-    if oflags.contains(OFlag::O_DSYNC) {
-        fdflags |= __WASI_FDFLAG_DSYNC;
-    }
+    // if oflags.contains(OFlag::O_DSYNC) {
+    //     fdflags |= __WASI_FDFLAG_DSYNC;
+    // }
     if oflags.contains(OFlag::O_NONBLOCK) {
         fdflags |= __WASI_FDFLAG_NONBLOCK;
     }
