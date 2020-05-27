@@ -1,5 +1,5 @@
 [package]
-name = "lucet-runtime"
+name = "lucet-runtime-wasmsbx"
 version = "0.1.1"
 description = "Pure Rust runtime for Lucet WebAssembly toolchain"
 homepage = "https://github.com/fastly/lucet"
@@ -11,8 +11,8 @@ edition = "2018"
 
 [dependencies]
 libc = "=0.2.59"
-lucet-runtime-internals = { path = "lucet-runtime-internals", version = "0.1.1" }
-lucet-module = { path = "../lucet-module", version = "0.1.1" }
+lucet-runtime-internals = { path = "lucet-runtime-internals", version = "0.1.1", package = "lucet-runtime-internals-wasmsbx" }
+lucet-module = { path = "../lucet-module", version = "0.1.1", package="lucet-module-wasmsbx" }
 num-traits = "0.2"
 num-derive = "0.3"
 

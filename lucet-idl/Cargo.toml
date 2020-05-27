@@ -22,7 +22,7 @@ failure = "0.1"
 xfailure = "0.1"
 heck = "0.3"
 lucetc = { path = "../lucetc" }
-lucet-module = { path = "../lucet-module" }
+lucet-module = { path = "../lucet-module", package="lucet-module-wasmsbx" }
 cranelift-entity = { path = "../cranelift/cranelift-entity" }
 
 [dev-dependencies]

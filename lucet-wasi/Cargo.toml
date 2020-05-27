@@ -1,5 +1,5 @@
 [package]
-name = "lucet-wasi"
+name = "lucet-wasi-wasmsbx"
 version = "0.1.1"
 description = "Fastly's runtime for the WebAssembly System Interface (WASI)"
 homepage = "https://github.com/fastly/lucet"
@@ -27,9 +27,9 @@ update-bindings = ["bindgen"]
 cast = "0.2"
 failure = "0.1"
 libc = "=0.2.59"
-lucet-runtime = { path = "../lucet-runtime", version = "0.1.1" }
-lucet-runtime-internals = { path = "../lucet-runtime/lucet-runtime-internals", version = "0.1.1" }
-lucet-module = { path = "../lucet-module", version = "0.1.1" }
+lucet-runtime = { path = "../lucet-runtime", version = "0.1.1", package = "lucet-runtime-wasmsbx" }
+lucet-runtime-internals = { path = "../lucet-runtime/lucet-runtime-internals", version = "0.1.1", package = "lucet-runtime-internals-wasmsbx" }
+lucet-module = { path = "../lucet-module", version = "0.1.1", package="lucet-module-wasmsbx" }
 nix = "0.13"
 rand = "0.7"
 

@@ -14,9 +14,9 @@ clap = "2.32"
 failure = "0.1"
 libc = "=0.2.59"
 lucetc = { path = "../lucetc" }
-lucet-runtime = { path = "../lucet-runtime" }
-lucet-module = { path = "../lucet-module" }
-lucet-wasi = { path = "../lucet-wasi" }
+lucet-runtime = { path = "../lucet-runtime", package = "lucet-runtime-wasmsbx" }
+lucet-module = { path = "../lucet-module", package="lucet-module-wasmsbx" }
+lucet-wasi = { path = "../lucet-wasi", package = "lucet-wasi-wasmsbx" }
 lucet-wasi-sdk = { path = "../lucet-wasi-sdk" }
 nix = "0.13"
 num_cpus = "1.10"
