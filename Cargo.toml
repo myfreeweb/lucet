@@ -13,6 +13,7 @@ members = [
   "lucet-spectest",
   "lucet-wasi",
   "lucet-wasi-fuzz",
+  "lucet-wasi-runner",
   "lucet-wasi-sdk",
   "lucetc",
   "sightglass",
